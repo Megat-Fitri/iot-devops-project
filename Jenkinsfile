@@ -26,8 +26,26 @@ pipeline {
             steps {
                 echo 'Running automated tests...'
                 script {
+                    // Remove old test container if exists
+                    sh 'docker rm -f test-container || true'
+                    
+                    // Start test container
                     sh 'docker run -d --name test-container -p 5001:5000 ${DOCKER_IMAGE}:v${BUILD_NUMBER}'
-                    sh 'sleep 5'
+                    
+                    // Wait for Flask to be ready
+                    sh '''
+                        echo "Waiting for Flask to start..."
+                        for i in $(seq 1 30); do
+                            if curl -s -f http://localhost:5001/health > /dev/null 2>&1; then
+                                echo "Flask is ready!"
+                                break
+                            fi
+                            echo "Attempt $i: not ready yet..."
+                            sleep 1
+                        done
+                    '''
+                    
+                    // Install requests and run tests
                     sh 'pip3 install requests --break-system-packages'
                     sh 'python3 test_app.py'
                 }
