@@ -28,7 +28,7 @@ pipeline {
                 script {
                     sh 'docker run -d --name test-container -p 5001:5000 ${DOCKER_IMAGE}:v${BUILD_NUMBER}'
                     sh 'sleep 5'
-                    sh 'pip3 install requests'
+                    sh 'pip3 install requests --break-system-packages'
                     sh 'python3 test_app.py'
                 }
             }
