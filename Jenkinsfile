@@ -26,17 +26,13 @@ pipeline {
             steps {
                 echo 'Running automated tests...'
                 script {
-                    // Remove old test container if exists
                     sh 'docker rm -f test-container || true'
-                    
-                    // Start test container
                     sh 'docker run -d --name test-container -p 5001:5000 ${DOCKER_IMAGE}:v${BUILD_NUMBER}'
                     
-                    // Wait for Flask to be ready
                     sh '''
                         echo "Waiting for Flask to start..."
                         for i in $(seq 1 30); do
-                            if curl -s -f http://localhost:5001/health > /dev/null 2>&1; then
+                            if curl -s -f http://host.docker.internal:5001/health > /dev/null 2>&1; then
                                 echo "Flask is ready!"
                                 break
                             fi
@@ -45,15 +41,18 @@ pipeline {
                         done
                     '''
                     
-                    // Install requests and run tests
                     sh 'pip3 install requests --break-system-packages'
-                    sh 'python3 test_app.py'
+                    sh '''
+                        sed "s|http://localhost:5001|http://host.docker.internal:5001|g" test_app.py > test_app_jenkins.py
+                        python3 test_app_jenkins.py
+                    '''
                 }
             }
             post {
                 always {
                     sh 'docker stop test-container || true'
                     sh 'docker rm test-container || true'
+                    sh 'rm -f test_app_jenkins.py || true'
                 }
             }
         }
